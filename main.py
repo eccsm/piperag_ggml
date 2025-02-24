@@ -1,60 +1,121 @@
-from fastapi import FastAPI, HTTPException, Query
+import logging
+import os
+from typing import Union
+
+from fastapi import FastAPI, HTTPException, Query, Body, File, UploadFile, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 
+from chat_service import ChatService
 from config import Config
-from qa_service import QAChainBuilder, CatPersonality
+
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger("piperag")
 
 app = FastAPI()
-
-# Enable CORS.
 app.add_middleware(
-    CORSMiddleware,  # type: ignore
+    CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Instantiate configuration and services.
 config = Config()
-qa_service = QAChainBuilder(config)
-cat_personality_service = CatPersonality()
+
+
+# Factory function to select the appropriate chat service.
+def get_chat_service() -> ChatService:
+    if config.MODEL_TYPE == "vicuna_ggml":
+        from rag_chat_service import RAGChatService
+        return RAGChatService(config)
+    elif config.MODEL_TYPE == "mlc_llm":
+        from basic_chat_service import BasicChatService
+        return BasicChatService(config)
+    else:
+        raise ValueError("Unsupported MODEL_TYPE in config.")
+
+
+chat_service = get_chat_service()
+current_model_type = config.MODEL_TYPE  # track the current model type globally
+
 
 @app.get("/ask")
-async def ask(q: str = Query(..., description="User query")):
-    """
-    GET /ask?q=Your+question
-    - If the query includes any RAG_KEYWORDS, use full RAG mode.
-    - Otherwise, use a free chat mode with a cat personality.
-    """
+async def ask(
+    q: str = Query(..., description="User query"),
+    model: str = Query(None, description="Optional model identifier")
+):
     if not q.strip():
         raise HTTPException(status_code=400, detail="Query is empty.")
+    try:
+        global current_model_type, chat_service
+        # If the query specifies a model and it differs from the current one,
+        # reinitialize the chat service with the correct configuration.
+        if model and model != current_model_type:
+            if model == "mlc_llm":
+                logger.info("Switching to mlc_llm")
+            else:
+                logger.info("Switching to vicuna_ggml")
 
-    query_lower = q.lower()
+            config.MODEL_TYPE = model
+            current_model_type = model
+            chat_service = get_chat_service()
+        result = chat_service.get_response(q)
+        return {"result": result}
+    except Exception as e:
+        logger.error("Error getting response", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
 
-    if any(keyword in query_lower for keyword in config.RAG_KEYWORDS):
-        result = qa_service.chain({"query": q})
-        answer = result["result"]
-        return answer
 
-    else:
-        cat_name = cat_personality_service.get_personality()
-        free_prompt = config.FREE_PROMPT_TEMPLATE.format(cat_name=cat_name, query=q)
+@app.post("/update_model")
+async def update_model(
+        background_tasks: BackgroundTasks,
+        new_model: str = Body("", embed=True, description="Path to the new model file"),
+        new_model_type: Union[str, None] = Body(None, embed=True,
+                                                description="New model type (e.g., 'vicuna_ggml' or 'mlc_llm')")
+):
+    try:
+        def reload_model_task():
+            if new_model_type:
+                config.MODEL_TYPE = new_model_type
 
-        result = qa_service.llm(free_prompt, max_tokens=256)
-        if isinstance(result, dict) and "choices" in result:
-            full_answer = result["choices"][0]["text"].strip()
-        else:
-            full_answer = str(result).strip()
+            if config.MODEL_TYPE == "vicuna_ggml":
+                if new_model.strip():
+                    config.MODEL_PATH = new_model
+            elif config.MODEL_TYPE == "mlc_llm":
+                if new_model.strip():
+                    config.DOMAIN_MODEL_PATH = new_model
 
-        # Clean up echoes from the prompt.
-        if full_answer.startswith(free_prompt):
-            full_answer = full_answer[len(free_prompt):].strip()
-        if "User:" in full_answer:
-            full_answer = full_answer.split("User:")[0].strip()
+            global chat_service
 
-        return full_answer
+            chat_service = get_chat_service()
+
+        background_tasks.add_task(reload_model_task)
+        return {"status": "Model reload started", "model_type": config.MODEL_TYPE}
+    except Exception as e:
+        logger.error("Error updating model", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/recognize")
+async def recognize(
+    task: str = Query(..., description="Task for image recognition, e.g., 'deepfake_detection'"),
+    file: UploadFile = File(...,alias="image")
+):
+    try:
+        contents = await file.read()
+        from image_recognition_service import ImageRecognitionService
+        # Pass the task to the service so it can select the correct model.
+        image_service = ImageRecognitionService(config, task)
+        result = image_service.recognize(contents)
+        return {"result": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)

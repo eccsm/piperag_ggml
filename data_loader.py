@@ -1,3 +1,4 @@
+# data_loader.py
 import json
 from langchain.schema import Document
 from langchain.text_splitter import CharacterTextSplitter
