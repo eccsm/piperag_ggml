@@ -1,29 +1,44 @@
 # Piperag GGML
 
-**Piperag GGML** is a [GGML](https://github.com/ggerganov/ggml)-based project by Ekincan Casim that demonstrates [describe what your project does – e.g., "an efficient inference engine for large language models," "a lightweight implementation for machine learning inference," or any specific purpose your project has]. This project leverages the performance and flexibility of GGML to provide [key features, e.g., "optimized model inference," "cross-platform support," etc.].
+Piperag GGML is a Python-based service that combines high-performance language model inference with image recognition capabilities. Originally built around GGML for efficient inference, the project has evolved to include dynamic chat service support using the MLCEngine (MLC LLM) and image recognition features for tasks such as deepfake detection.
 
 ## Overview
 
-Piperag GGML is designed to:
-- **Efficiently load and run models:** [Brief description about model handling if applicable]
-- **Optimize inference speed:** Using the GGML library for fast matrix operations and low-memory footprint.
-- **Serve as a reference implementation:** For developers interested in integrating GGML into their own projects.
+Piperag GGML offers a modular framework for:
+- **Chat Service:** Interact with language models using an MLCEngine wrapper that supports models hosted on Hugging Face. The chat service is dynamically reloadable and adjustable for multiple model types.
+- **Image Recognition:** Process images for various tasks (e.g., deepfake detection) via a dedicated endpoint.
+- **Dynamic Model Updates:** Easily switch or update models (both chat and image recognition) at runtime using REST API endpoints.
 
-## Features
+## Key Features
 
-- **Optimized Inference:** Leverages GGML for high-performance model inference.
-- **Lightweight & Portable:** Designed to run on various platforms with minimal dependencies.
-- **Easy Integration:** Provides a clear example of how to use GGML in your own projects.
+- **MLC LLM Integration:**  
+  - Leverages [MLC LLM](https://huggingface.co/eccsm/mlc_llm) for language model inference.
+  - Uses a custom wrapper with adjustments (e.g., Pydantic private attributes) to avoid field errors.
+  - Supports direct Hugging Face links—ensure your model repository includes all required artifacts (like `ndarray-cache.json`).
+
+- **Image Recognition Service:**  
+  - Provides endpoints for image recognition tasks.
+  - Easily extendable to support models for deepfake detection or other computer vision tasks.
+  
+- **Dynamic Reloading:**  
+  - Update models on the fly using the `/update_model` endpoint.
+  - Seamlessly switch between different model types (e.g., `mlc_llm` vs. `vicuna_ggml`).
+
+- **REST API Endpoints:**  
+  - `/ask` – for chat queries.
+  - `/update_model` – for dynamically reloading/updating the model configuration.
+  - `/recognize` – for performing image recognition tasks.
 
 ## Getting Started
 
 ### Prerequisites
 
-- [GGML](https://github.com/ggerganov/ggml) library (ensure you have the required C/C++ build tools installed)
-- [CMake](https://cmake.org/) for building the project
-- A C/C++ compiler (e.g., GCC, Clang)
+- **Python 3.10+** (recommended for best compatibility)
+- [GGML](https://github.com/ggerganov/ggml) libraries and build tools (if you plan to modify or extend low-level inference)
+- [CMake](https://cmake.org) and a C/C++ compiler (if building native extensions or GGML components)
+- [Git LFS](https://git-lfs.github.com) for managing large model files
 
-### Building the Project
+### Installation
 
 1. **Clone the Repository:**
 
@@ -31,58 +46,104 @@ Piperag GGML is designed to:
    git clone https://github.com/eccsm/piperag_ggml.git
    cd piperag_ggml
    ```
-2. **Configure and Build:**
 
-    Create a build directory and run CMake:
-    ```bash
-    mkdir build && cd build
-    cmake ..
-    make
-    ```
-3. **Run the Application:**
+2. **Create and Activate a Virtual Environment:**
 
-    Once built, you can run the resulting executable. For example:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate   # On Windows: venv\Scripts\activate
+   ```
 
-    ```bash
-    ./piperag_ggml_executable
-    ```
-    (Replace piperag_ggml_executable with the actual name of your built binary.)
+3. **Install Dependencies:**
 
-### Usage
+   If you have a `requirements.txt` (or use [Poetry/Pipenv] if preferred), install with:
 
-Include brief instructions on how to use the project. For example:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-- **Command-line Options:**
+4. **(Optional) Build Docker Image:**
 
-    Describe any command-line options, e.g.:
+   The provided `Dockerfile` can be used to containerize the application:
 
-     ```bash
-    ./piperag_ggml_executable --model path/to/model.bin --threads 4
-     ```
-  
-- **API Usage (if applicable):**
+   ```bash
+   docker build -t piperag_ggml .
+   docker run -p 8000:8000 piperag_ggml
+   ```
 
-    If your project provides a library API, include a simple code snippet showing how to call its main functions.
+## Usage
 
-## Project Structure
-A brief overview of the key directories and files:
+### Running the Application
 
-```makefile
-piperag_ggml/
-├── CMakeLists.txt         # Build configuration
-├── README.md              # Project documentation (this file)
-├── src/                   # Source code files
-│   ├── main.cpp           # Entry point of the application
-│   └── ...                # Other source files and modules
-├── include/               # Header files for the project
-└── examples/              # Example code demonstrating project usage
+You can start the service using Uvicorn (or via Docker):
+
+```bash
+uvicorn main:app --host 127.0.0.1 --port 8000 --reload
 ```
+
+### API Endpoints
+
+- **Chat Service:**  
+  **GET** `/ask`  
+  **Query Parameters:**
+  - `q` (string): The user query.
+  - `model` (optional string): Specify the model type (e.g., `mlc_llm` or `vicuna_ggml`).
+
+  **Example:**
+
+  ```
+  GET http://127.0.0.1:8000/ask?q=Hello+world&model=mlc_llm
+  ```
+
+- **Dynamic Model Update:**  
+  **POST** `/update_model`  
+  **Body Parameters (JSON):**
+  - `new_model` (string): New model file or HF path.
+  - `new_model_type` (optional string): Specify the new model type.
+  
+  **Example Payload:**
+
+  ```json
+  {
+    "new_model": "HF://eccsm/mlc_llm/RedPajama-INCITE-Chat-3B-v1-q4f16_1",
+    "new_model_type": "mlc_llm"
+  }
+  ```
+
+- **Image Recognition:**  
+  **POST** `/recognize`  
+  **Query Parameters:**
+  - `task` (string): Specify the recognition task (e.g., "deepfake_detection").
+  
+  **File Upload:**
+  - `image` (file): Upload the image file.
+
+  **Example:**
+
+  Use a tool like Postman or a cURL command to upload an image file along with the task parameter.
+
+## Model Configuration & Hugging Face Integration
+
+- **MLC LLM Models:**  
+  The MLCEngine wrapper requires a Hugging Face model repository that contains:
+  - The compiled shared library (e.g., `RedPajama-INCITE-Chat-3B-v1-q4f16_1-vulkan.so`)
+  - Additional model files such as `ndarray-cache.json` and parameter shards.
+
+  **Important:**  
+  Make sure your HF repository (e.g., [eccsm/mlc_llm](https://huggingface.co/eccsm/mlc_llm)) has the full directory structure required by MLC LLM.
+
+- **Image Recognition Models:**  
+  Similarly, if you integrate or update image recognition models, ensure that their paths (local or on HF) are correctly set in your configuration.
+
 ## Contributing
-Contributions are welcome! If you have suggestions or improvements, please fork the repository and submit a pull request. For major changes, open an issue first to discuss your ideas.
+
+Contributions are welcome! Feel free to fork the repository, submit pull requests, or open issues to discuss improvements and bug fixes.
 
 ## License
+
 This project is licensed under the MIT License.
 
 ## Contact
-For questions or further information, please reach out via GitHub Issues or contact Ekincan Casim via LinkedIn.
+
+For questions or further information, please open an issue on GitHub or contact Ekincan Casim via LinkedIn.
 
