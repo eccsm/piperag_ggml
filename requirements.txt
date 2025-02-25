@@ -1,11 +1,23 @@
+# Data & Image Processing
 pillow>=9.0.0
 torch>=1.8.0
+
+# Machine Learning & Transformers
 transformers>=4.0.0
 ultralytics>=8.0.0
-uvicorn~=0.34.0
-fastapi~=0.115.8
 huggingface-hub~=0.29.0
+
+# Web Framework & ASGI Server
+fastapi~=0.115.8
+uvicorn~=0.34.0
+
+# LangChain Ecosystem (for QA and LLM interactions)
 langchain-core~=0.3.37
 langchain~=0.3.19
 langchain-community~=0.3.18
+
+# Analytics
 posthog~=3.14.1
+
+# LLM Engine built from source (mlc_llm)
+git+https://github.com/mlc-ai/mlc-llm.git@main#egg=mlc_llm
