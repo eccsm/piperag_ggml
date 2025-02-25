@@ -1,0 +1,12 @@
+pillow>=9.0.0
+torch>=1.8.0
+transformers>=4.0.0
+ultralytics>=8.0.0
+uvicorn~=0.34.0
+fastapi~=0.115.8
+huggingface_hub~=0.24.6
+huggingface-hub~=0.29.0
+langchain-core~=0.3.37
+langchain~=0.3.19
+langchain-community~=0.3.18
+posthog~=3.14.1

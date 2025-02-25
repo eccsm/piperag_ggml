@@ -1,7 +1,9 @@
 import datetime
-from chat_service import ChatService
+from abc import abstractmethod
+
+from services.chat_service import ChatService
 from config import Config
-from qa_service import QAChainBuilder
+from services.qa_service import QAChainBuilder
 
 
 def get_cat_personality() -> str:
@@ -11,10 +13,10 @@ def get_cat_personality() -> str:
 
 class RAGChatService(ChatService):
     def __init__(self, config: Config):
-        self.config = config
+        super().__init__(config)
         self.qa_chain_builder = QAChainBuilder(config)
 
-    def get_response(self, query: str) -> str:
+    def generate_response(self, query: str, **kwargs) -> str:
         query_lower = query.lower()
         # Use RAG if any keyword matches.
         if any(keyword in query_lower for keyword in self.config.RAG_KEYWORDS):
@@ -35,5 +37,3 @@ class RAGChatService(ChatService):
                 full_answer = full_answer.split("User:")[0].strip()
             return full_answer
 
-    def reload(self, new_model_path: str, new_model_type: str = None):
-        self.qa_chain_builder.reload_model(new_model_path, new_model_type)

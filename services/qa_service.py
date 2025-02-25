@@ -1,13 +1,16 @@
 import os
+
 import torch
 from huggingface_hub import hf_hub_download
-from langchain_core.callbacks import CallbackManager, StreamingStdOutCallbackHandler
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_chroma import Chroma
+from langchain.callbacks import StreamingStdOutCallbackHandler
 from langchain.chains import RetrievalQA
+from langchain_chroma import Chroma
 from langchain_community.llms import LlamaCpp
+from langchain_huggingface import HuggingFaceEmbeddings
+
 from config import Config
 from data_loader import DataLoader
+
 
 class QAChainBuilder:
     def __init__(self, config: Config):
@@ -33,8 +36,7 @@ class QAChainBuilder:
 
         # Dynamically load the model based on the model type.
         if self.config.MODEL_TYPE == "vicuna_ggml":
-            from langchain_core.callbacks import StreamingStdOutCallbackHandler
-            callback_manager = CallbackManager([StreamingStdOutCallbackHandler()])
+            callbacks = [StreamingStdOutCallbackHandler()]
             use_cuda = torch.cuda.is_available()
             n_gpu_layers = 30 if use_cuda else 0
 
@@ -51,7 +53,7 @@ class QAChainBuilder:
                 temperature=0.7,
                 max_tokens=512,
                 top_p=0.95,
-                callback_manager=callback_manager,
+                callback_manager=callbacks,
                 verbose=True,
                 stop=["User:"],
                 n_gpu_layers=n_gpu_layers
