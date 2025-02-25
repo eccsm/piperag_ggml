@@ -19,15 +19,17 @@ jobs:
         with:
           python-version: '3.9'
 
-      - name: Build mlc_llm shared library
+      - name: Build mlc_llm from source
         run: |
-          git clone https://github.com/mlc-ai/mlc-llm.git
+          git clone --recursive https://github.com/mlc-ai/mlc-llm.git
           cd mlc-llm
           mkdir build && cd build
           cmake ..
           make -j$(nproc)
-          # Add the build directory to LD_LIBRARY_PATH
+          # Export build directory so Python can find libmlc_llm.so
           echo "$(pwd)" >> $GITHUB_ENV
+          cd ../python
+          pip install .
 
       - name: Install Python dependencies
         env:
