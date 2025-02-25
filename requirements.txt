@@ -20,4 +20,5 @@ langchain-community~=0.3.18
 posthog~=3.14.1
 
 # LLM Engine built from source (mlc_llm)
-git+https://github.com/mlc-ai/mlc-llm.git@main#egg=mlc_llm
+git+https://github.com/mlc-ai/mlc-llm.git@main#egg=mlc_llm&subdirectory=python
+
