@@ -23,6 +23,7 @@ jobs:
             libtinfo-dev \
             libedit-dev \
             libgl1 \
+            libglib2.0-0 \
           && sudo rm -rf /var/lib/apt/lists/*
 
       - name: Install Python dependencies for building TVM
@@ -44,7 +45,7 @@ jobs:
           make -j$(nproc)
           echo "PYTHONPATH=$(pwd)/../python" >> $GITHUB_ENV
 
-      - name: Build mlc_llm from source
+      - name: Build and install mlc_llm from source
         run: |
           git clone --recursive https://github.com/mlc-ai/mlc-llm.git
           cd mlc-llm
@@ -52,6 +53,8 @@ jobs:
           cmake .. -DCMAKE_BUILD_TYPE=Release
           make -j$(nproc)
           echo "LIBMLC_LLM_PATH=$(pwd)" >> $GITHUB_ENV
+          # Now install the Python package so that "from mlc_llm import MLCEngine" works:
+          cd ../python && pip install .
 
       - name: Set up Python
         uses: actions/setup-python@v4
