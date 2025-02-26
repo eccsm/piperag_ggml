@@ -24,26 +24,32 @@ jobs:
             libedit-dev \
           && sudo rm -rf /var/lib/apt/lists/*
 
+      - name: Install Python dependencies for building TVM
+        run: |
+          pip install --upgrade pip
+          pip install cython
+
+      - name: Install Rust via rustup
+        run: |
+          curl https://sh.rustup.rs -sSf | sh -s -- -y
+          echo "/home/runner/.cargo/bin" >> $GITHUB_PATH
+
       - name: Build TVM from source
         run: |
-          # Clone TVM repository with submodules
           git clone --recursive https://github.com/apache/tvm.git tvm
           cd tvm
           mkdir build && cd build
           cmake .. -DCMAKE_BUILD_TYPE=Release
           make -j$(nproc)
-          # Add TVM's Python package directory to PYTHONPATH
           echo "PYTHONPATH=$(pwd)/../python" >> $GITHUB_ENV
 
       - name: Build mlc_llm from source
         run: |
-          # Clone mlc-llm repository with submodules and build it
           git clone --recursive https://github.com/mlc-ai/mlc-llm.git
           cd mlc-llm
           mkdir build && cd build
-          cmake ..
+          cmake .. -DCMAKE_BUILD_TYPE=Release
           make -j$(nproc)
-          # Set LIBMLC_LLM_PATH so that mlc_llm can locate its shared library
           echo "LIBMLC_LLM_PATH=$(pwd)" >> $GITHUB_ENV
 
       - name: Set up Python
