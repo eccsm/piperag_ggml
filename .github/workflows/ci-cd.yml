@@ -22,7 +22,7 @@ jobs:
             cargo \
             libtinfo-dev \
             libedit-dev \
-            libgl1-mesa-glx \
+            libgl1 \
           && sudo rm -rf /var/lib/apt/lists/*
 
       - name: Install Python dependencies for building TVM
@@ -64,4 +64,4 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run tests
-        run: pytest --maxfail=1 --disable-warnings -q --ignore=mlc_llm
+        run: pytest --maxfail=1 --disable-warnings -q --ignore=mlc-llm
