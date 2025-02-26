@@ -13,31 +13,48 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.9'
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update && sudo apt-get install -y \
+            git \
+            cmake \
+            build-essential \
+            cargo \
+            libtinfo-dev \
+            libedit-dev \
+          && sudo rm -rf /var/lib/apt/lists/*
+
+      - name: Build TVM from source
+        run: |
+          # Clone TVM repository with submodules
+          git clone --recursive https://github.com/apache/tvm.git tvm
+          cd tvm
+          mkdir build && cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release
+          make -j$(nproc)
+          # Add TVM's Python package directory to PYTHONPATH
+          echo "PYTHONPATH=$(pwd)/../python" >> $GITHUB_ENV
 
       - name: Build mlc_llm from source
         run: |
-          # Clone the mlc-llm repo recursively to get all submodules
+          # Clone mlc-llm repository with submodules and build it
           git clone --recursive https://github.com/mlc-ai/mlc-llm.git
           cd mlc-llm
           mkdir build && cd build
           cmake ..
           make -j$(nproc)
-          # Export the build directory to LD_LIBRARY_PATH so the shared library can be found
-          echo "LD_LIBRARY_PATH=$(pwd)" >> $GITHUB_ENV
-          cd ../python
-          pip install .
+          # Set LIBMLC_LLM_PATH so that mlc_llm can locate its shared library
+          echo "LIBMLC_LLM_PATH=$(pwd)" >> $GITHUB_ENV
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
 
       - name: Install Python dependencies
-        env:
-          # Append the mlc_llm build directory to the LD_LIBRARY_PATH
-          LD_LIBRARY_PATH: ${{ env.LD_LIBRARY_PATH }}:${{ github.workspace }}/mlc-llm/build
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt
+          pip install --upgrade pip
+          pip install -r requirements.txt
 
       - name: Run tests
         run: pytest --maxfail=1 --disable-warnings -q --ignore=mlc-llm

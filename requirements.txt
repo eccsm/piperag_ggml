@@ -22,5 +22,8 @@ posthog~=3.14.1
 # Testing
 pytest>=7.0.0
 
+# TVM dependency required by mlc_llm
+apache-tvm
+
 # LLM Engine built from source (mlc_llm)
 git+https://github.com/mlc-ai/mlc-llm.git@main#egg=mlc_llm&subdirectory=python
