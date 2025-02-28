@@ -1,7 +1,11 @@
 import logging
+import sys
+import os
 
 from posthog import flush
 
+# Add the mlc-llm directory to the Python path
+sys.path.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'mlc-llm'))
 from mlc_llm import MLCEngine
 
 from services.chat_service import ChatService  # Your abstract chat service interface
@@ -29,4 +33,3 @@ class BasicChatService(ChatService):
         except Exception as e:
             logger.error("Error in MLC _call", exc_info=True)
             raise e
-

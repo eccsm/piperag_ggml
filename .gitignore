@@ -1,3 +1,4 @@
 /train/
 .idea
 __pycacahe__
+.env

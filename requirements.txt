@@ -6,6 +6,7 @@ torch>=1.8.0
 transformers>=4.0.0
 ultralytics>=8.0.0
 huggingface-hub~=0.29.0
+mlc-python~=0.2.4  # Required for MLCEngine
 
 # Web Framework & ASGI Server
 fastapi~=0.115.8
@@ -21,3 +22,6 @@ posthog~=3.14.1
 
 # Testing
 pytest>=7.0.0
+huggingface_hub~=0.24.6
+pydantic~=2.11.0a2
+pydantic-settings~=2.7.1
