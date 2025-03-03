@@ -4,16 +4,13 @@ torch>=1.8.0
 
 # Machine Learning & Transformers
 transformers>=4.0.0
-ultralytics>=8.0.0
 huggingface-hub~=0.29.0
-mlc-python~=0.2.4  # Required for MLCEngine
 
 # Web Framework & ASGI Server
 fastapi~=0.115.8
 uvicorn~=0.34.0
 
 # LangChain Ecosystem (for QA and LLM interactions)
-langchain-core~=0.3.37
 langchain~=0.3.19
 langchain-community~=0.3.18
 
@@ -25,3 +22,4 @@ pytest>=7.0.0
 huggingface_hub~=0.24.6
 pydantic~=2.11.0a2
 pydantic-settings~=2.7.1
+langdetect~=1.0.9

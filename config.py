@@ -18,12 +18,41 @@ class Config(BaseSettings):
         default="your-temp-dev-key-please-set-in-env",
         description="API key for authentication"
     )
-    
-    # File paths with env variable defaults
-    JSON_PATH: str = Field(
-        default=os.path.join("train", "data", "Ekincan_Casim_Chunks.json"),
+
+    CAT_NAME_EN: str = Field(
+        default="Sug",
+        description="Name of the cat persona")
+
+    CAT_NAME_TR: str = Field(
+        default="Şeker",
+        description="Name of the cat persona")
+
+    EKINCAN_JSON_PATH_TR: str = Field(
+        default=os.path.join("train", "data", "ekincan_tr.json"),
+        description="Path to training data JSON file")
+
+
+    EKINCAN_JSON_PATH_EN: str = Field(
+        default=os.path.join("train", "data", "ekincan_en.json"),
         description="Path to training data JSON file"
     )
+
+    PEP_JSON_PATH_TR: str = Field(
+        default=os.path.join("train", "data", "pep_story_tr.json"),
+        description="Path to training data JSON file")
+
+    PEP_JSON_PATH_EN: str = Field(
+        default=os.path.join("train", "data", "pep_story_en.json"),
+        description="Path to training data JSON file")
+
+    SUG_JSON_PATH_TR: str = Field(
+        default=os.path.join("train", "data", "sug_story_tr.json"),
+        description="Path to training data JSON file")
+
+    SUG_JSON_PATH_EN: str = Field(
+        default=os.path.join("train", "data", "sug_story_en.json"),
+        description="Path to training data JSON file")
+
     GGUF_CACHE_DIR: str = Field(
         default="./vicuna-7b-q8",
         description="Directory for GGUF model cache"
