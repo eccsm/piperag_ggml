@@ -7,64 +7,33 @@ on:
     branches: [ master ]
 
 jobs:
-  build:
+  build-and-test:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Install system dependencies
+      - name: Build Docker image
         run: |
-          sudo apt-get update && sudo apt-get install -y \
-            git \
-            cmake \
-            build-essential \
-            cargo \
-            libtinfo-dev \
-            libedit-dev \
-            libgl1 \
-            libglib2.0-0 \
-          && sudo rm -rf /var/lib/apt/lists/*
+          docker build -t my-mlc-llm-app .
 
-      - name: Install Python dependencies for building TVM
+      - name: Run container in detached mode
         run: |
-          pip install --upgrade pip
-          pip install cython
+          docker run -d --name mlc_app -p 8000:8000 my-mlc-llm-app
+          # Give the app some time to start
+          sleep 10
 
-      - name: Install Rust via rustup
+      - name: Check health endpoint
         run: |
-          curl https://sh.rustup.rs -sSf | sh -s -- -y
-          echo "/home/runner/.cargo/bin" >> $GITHUB_PATH
+          curl --fail http://localhost:8000/health
 
-      - name: Build TVM from source
+      - name: Run tests inside container
         run: |
-          git clone --recursive https://github.com/apache/tvm.git tvm
-          cd tvm
-          mkdir build && cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release
-          make -j$(nproc)
-          echo "PYTHONPATH=$(pwd)/../python" >> $GITHUB_ENV
+          # Adjust the test command as needed (for example, if you use pytest)
+          docker exec mlc_app pytest --maxfail=1 --disable-warnings -q
 
-      - name: Build and install mlc_llm from source
+      - name: Stop and remove container
         run: |
-          git clone --recursive https://github.com/mlc-ai/mlc-llm.git
-          cd mlc-llm
-          mkdir build && cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release
-          make -j$(nproc)
-          echo "LIBMLC_LLM_PATH=$(pwd)" >> $GITHUB_ENV
-          # Now install the Python package so that "from mlc_llm import MLCEngine" works:
-          cd ../python && pip install .
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.9'
-
-      - name: Install Python dependencies
-        run: |
-          pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Run tests
-        run: pytest --maxfail=1 --disable-warnings -q --ignore=mlc-llm
+          docker stop mlc_app
+          docker rm mlc_app
