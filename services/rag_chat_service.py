@@ -47,14 +47,14 @@ class RAGChatService(ChatService):
         # Fallback: free-form conversation using the fallback LLM.
         cat_name = self.config.CAT_NAME_TR if is_turkish else self.config.CAT_NAME_EN
         prompt = self.config.FREE_PROMPT_TEMPLATE.format(cat_name=cat_name, query=query)
-        result = self.chain_builder.llm.invoke(prompt, max_tokens=256)
-        if isinstance(result, dict) and "choices" in result:
-            full_answer = result["choices"][0]["text"].strip()
-        else:
-            full_answer = str(result).strip()
+
+        raw_result = self.chain_builder.llm.generate([prompt], max_tokens=256)
+        full_answer = raw_result.generations[0][0].text.strip()
 
         if full_answer.startswith(prompt):
             full_answer = full_answer[len(prompt):].strip()
         if "User:" in full_answer:
             full_answer = full_answer.split("User:")[0].strip()
+
         return full_answer
+

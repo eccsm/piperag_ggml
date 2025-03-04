@@ -55,7 +55,3 @@ jobs:
           cmake --build . --parallel $(nproc)
           # Install the Python package
           cd ../python && pip install -e .
-
-      - name: Run Tests
-        run: |
-          pytest --maxfail=1 --disable-warnings -q

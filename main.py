@@ -1,4 +1,3 @@
-# main.py
 import asyncio
 import logging
 import os
@@ -31,8 +30,10 @@ api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
 # Initialize config to get API key from .env via Pydantic
 app_config = Config()
 
-# Security dependency
-async def get_api_key(api_key: str = Security(api_key_header)):
+# Security dependency updated to bypass OPTIONS requests
+async def get_api_key(api_key: str = Security(api_key_header), request: Request = None):
+    if request and request.method.upper() == "OPTIONS":
+        return ""
     if api_key == app_config.API_KEY:
         return api_key
     logger.warning("Invalid API key attempt")
@@ -140,19 +141,10 @@ async def ask(
     chat_service: ChatService = Depends(get_chat_service),
     config: Config = Depends(get_config)
 ):
-    """
-    If `model` is specified and differs from `config.MODEL_TYPE`,
-    re-init the service. Otherwise, skip re-init to avoid overhead.
-    """
     try:
-        # STEP 1) Normalize user model choice
         model = model.lower() if model else None
-
-        # STEP 2) Check if user wants to switch model
-        # We'll store the old model before changing
         old_model = config.MODEL_TYPE
 
-        # If user picks 'sug'/'pep', set the model to vicuna_ggml, plus cat persona
         if model in ["sug", "pep"]:
             config.CAT_NAME_EN = model.capitalize()
             name_map = {"sug": "Şeker", "pep": "Biber"}
@@ -161,7 +153,6 @@ async def ask(
         elif model == "mlc":
             config.MODEL_TYPE = "mlc_llm"
 
-        # STEP 3) If the model actually changed, re-init once
         if config.MODEL_TYPE != old_model:
             logger.info(f"Switching model from {old_model} to {config.MODEL_TYPE}")
             app.state.app_state.chat_service = ServiceFactory.create_service(config)
@@ -169,7 +160,6 @@ async def ask(
         else:
             logger.debug("Model unchanged, skipping re-init.")
 
-        # STEP 4) Process user query via the chat service in a background thread
         result = await asyncio.to_thread(chat_service.generate_response, q)
         return {"result": result}
 
@@ -199,10 +189,6 @@ async def update_model(
     config: Config = Depends(get_config),
     chat_service: ChatService = Depends(get_chat_service),
 ):
-    """
-    If user requests a new model type (e.g., 'sug' => 'vicuna_ggml'),
-    we only re-init if it differs from what's currently loaded.
-    """
     try:
         old_model = config.MODEL_TYPE
         if new_model_type:
