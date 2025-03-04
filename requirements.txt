@@ -4,7 +4,6 @@ torch>=1.8.0
 
 # Machine Learning & Transformers
 transformers>=4.0.0
-huggingface-hub~=0.29.0
 
 # Web Framework & ASGI Server
 fastapi~=0.115.8
