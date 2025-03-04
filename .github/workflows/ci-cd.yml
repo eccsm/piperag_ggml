@@ -1,4 +1,4 @@
-name: CI/CD Pipeline
+name: Build and Test Packages
 
 on:
   push:
@@ -7,33 +7,55 @@ on:
     branches: [ master ]
 
 jobs:
-  build-and-test:
+  build:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Build Docker image
+      - name: Install system dependencies
         run: |
-          docker build -t my-mlc-llm-app .
+          sudo apt-get update && sudo apt-get install -y \
+            build-essential \
+            git \
+            cmake \
+            curl \
+            wget \
+          && sudo rm -rf /var/lib/apt/lists/*
 
-      - name: Run container in detached mode
-        run: |
-          docker run -d --name mlc_app -p 8000:8000 my-mlc-llm-app
-          # Give the app some time to start
-          sleep 10
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
 
-      - name: Check health endpoint
+      - name: Upgrade pip and install Python build dependencies
         run: |
-          curl --fail http://localhost:8000/health
+          pip install --upgrade pip cython
 
-      - name: Run tests inside container
+      - name: Install TVM Unity (Prebuilt Package)
         run: |
-          # Adjust the test command as needed (for example, if you use pytest)
-          docker exec mlc_app pytest --maxfail=1 --disable-warnings -q
+          # For a CPU target, install the prebuilt TVM package.
+          pip install --pre -U -f https://mlc.ai/wheels mlc-ai-nightly-cpu
 
-      - name: Stop and remove container
+      - name: Build and install MLC-LLM
         run: |
-          docker stop mlc_app
-          docker rm mlc_app
+          git clone --recursive https://github.com/mlc-ai/mlc-llm.git
+          cd mlc-llm
+          mkdir -p build && cd build
+          # Configure build with desired flags
+          cmake .. -DCMAKE_BUILD_TYPE=Release \
+                    -DUSE_CUDA=OFF \
+                    -DUSE_METAL=OFF \
+                    -DUSE_OPENCL=OFF \
+                    -DUSE_VULKAN=OFF \
+                    -DUSE_ROCM=OFF \
+                    -DUSE_OPENMP=ON
+          # Build using all available processors
+          cmake --build . --parallel $(nproc)
+          # Install the Python package
+          cd ../python && pip install -e .
+
+      - name: Run Tests
+        run: |
+          pytest --maxfail=1 --disable-warnings -q
