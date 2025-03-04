@@ -1,0 +1,11 @@
+# Exported from Render on 2025-03-04T22:20:14Z
+services:
+- type: web
+  name: piperag_ggml
+  runtime: docker
+  repo: https://github.com/eccsm/piperag_ggml
+  plan: free
+  region: frankfurt
+  dockerContext: .
+  dockerfilePath: ./Dockerfile
+version: "1"
