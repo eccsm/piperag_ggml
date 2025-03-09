@@ -1,16 +1,21 @@
 import asyncio
 import logging
 import os
+import subprocess
 import time
+import uuid
 from typing import Union, Dict, Any
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Query, Body, File, UploadFile, BackgroundTasks, Depends, Request, Security
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.security.api_key import APIKeyHeader
+from jinja2 import Environment, FileSystemLoader
+from starlette.responses import StreamingResponse
+
+import po
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-
 from services.image_recognition_service import ImageRecognitionService
 from services.service_factory import ServiceFactory
 from services.chat_service import ChatService
@@ -72,16 +77,11 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
-
+origins = ["*"]
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://resume-63067.web.app",
-        "https://resume-63067.firebaseapp.com",
-        "http://localhost:3000",
-        "http://http://localhost:61455"
-    ],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -270,6 +270,50 @@ async def recognize(
 @app.get("/health", summary="Health Check", description="Check if the service is running properly")
 async def health_check():
     return {"status": "healthy", "version": "1.0.0"}
+
+
+env = Environment(loader=FileSystemLoader("templates"))
+template = env.get_template("resume_template.html")
+
+
+@app.get("/generate_resume_pdf")
+async def generate_resume_pdf():
+    rendered_html = template.render(po.data)
+
+    temp_html_file = f"temp_{uuid.uuid4().hex}.html"
+    with open(temp_html_file, "w", encoding="utf-8") as f:
+        f.write(rendered_html)
+
+    # Generate a temporary PDF file name.
+    temp_pdf_file = f"temp_{uuid.uuid4().hex}.pdf"
+
+    # Run Pandoc with xelatex.
+    pandoc_cmd = [
+        "pandoc",
+        temp_html_file,
+        "-o",
+        temp_pdf_file,
+        "--pdf-engine=xelatex"
+    ]
+
+    try:
+        subprocess.run(pandoc_cmd, check=True)
+    except subprocess.CalledProcessError:
+        os.remove(temp_html_file)
+        raise HTTPException(status_code=500, detail="PDF generation failed.")
+
+    os.remove(temp_html_file)  # Clean up the HTML file.
+
+    def iterfile():
+        with open(temp_pdf_file, "rb") as pdf_file:
+            yield pdf_file.read()
+        os.remove(temp_pdf_file)
+
+    return StreamingResponse(
+        iterfile(),
+        media_type="application/pdf",
+        headers={"Content-Disposition": "attachment; filename=resume.pdf"}
+    )
 
 if __name__ == "__main__":
     import uvicorn
